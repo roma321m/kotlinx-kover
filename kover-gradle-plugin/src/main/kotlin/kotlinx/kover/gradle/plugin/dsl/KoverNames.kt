@@ -1,3 +1,7 @@
+/*
+ * Copyright 2017-2023 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.
+ */
+
 package kotlinx.kover.gradle.plugin.dsl
 
 import kotlinx.kover.gradle.plugin.commons.htmlReportTaskName
@@ -51,6 +55,11 @@ public object KoverNames {
      * Name of the coverage logging task for Kotlin JVM and Kotlin multiplatform projects.
      */
     public const val DEFAULT_LOG_REPORT_NAME = "koverLog"
+
+    /**
+     * TODO
+     */
+    public const val JVM_VARIANT_NAME = "jvm"
 
     /**
      * Name of the XML report generation task for [buildVariant] Android build variant for Android projects.

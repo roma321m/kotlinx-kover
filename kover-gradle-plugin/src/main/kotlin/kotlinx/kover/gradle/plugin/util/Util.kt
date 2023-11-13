@@ -40,6 +40,7 @@ internal fun String.wildcardsToClassFileRegex(): String {
 }
 
 /**
+ * TODO
  * Replaces characters `*` or `.` to `.*` and `.` regexp characters.
  */
 internal fun String.wildcardsToRegex(): String {
@@ -49,8 +50,9 @@ internal fun String.wildcardsToRegex(): String {
     forEach { char ->
         when (char) {
             in regexMetacharactersSet -> builder.append('\\').append(char)
-            '*' -> builder.append('.').append("*")
+            '*' -> builder.append(".*")
             '?' -> builder.append('.')
+            '@' -> builder.append("[^.]*")
             else -> builder.append(char)
         }
     }

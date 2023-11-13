@@ -7,7 +7,7 @@ import kotlinx.kover.gradle.plugin.test.functional.framework.checker.*
 import kotlinx.kover.gradle.plugin.test.functional.framework.starter.*
 
 internal class VariantUsageTests {
-    @ExamplesTest("android/variantUsage", [":app:koverXmlReport"])
+    @ExamplesTest("android/variantUsage", [":app:koverXmlReportCustom"])
     fun CheckerContext.testAndroidVariantUsage() {
         subproject(":app") {
             xmlReport {
@@ -16,8 +16,8 @@ internal class VariantUsageTests {
                 checkOutcome(":lib:testDebugUnitTest", "SUCCESS")
 
                 // check artifact generation tasks
-                checkOutcome(":app:koverGenerateArtifactDebug", "SUCCESS")
-                checkOutcome(":lib:koverGenerateArtifactDebug", "SUCCESS")
+                checkOutcome(":app:koverGenerateArtifactCustom", "SUCCESS")
+                checkOutcome(":lib:koverGenerateArtifactCustom", "SUCCESS")
                 checkOutcome(":app:koverGenerateArtifact", "SUCCESS")
 
                 classCounter("kotlinx.kover.test.android.DebugUtil").assertFullyCovered()

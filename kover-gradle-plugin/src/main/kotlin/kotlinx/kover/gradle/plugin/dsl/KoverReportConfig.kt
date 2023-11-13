@@ -2,16 +2,16 @@
  * Copyright 2017-2023 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.
  */
 
+@file:Suppress("UNUSED_PARAMETER")
+
 package kotlinx.kover.gradle.plugin.dsl
 
 import kotlinx.kover.gradle.plugin.commons.KoverMigrations
 import org.gradle.api.*
-import org.gradle.api.file.Directory
-import org.gradle.api.file.RegularFile
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
-import java.io.*
 
 /**
  * Configuration of Kover reports.
@@ -69,7 +69,7 @@ import java.io.*
  *  }
  * ```
  */
-public interface KoverReportExtension {
+public interface KoverReportConfig {
     /**
      * Specify common filters for all report variants, these filters will be inherited in HTML/XML/verification reports.
      * They can be redefined in the settings of a specific report.
@@ -85,7 +85,7 @@ public interface KoverReportExtension {
      *  }
      * ```
      */
-    public fun filters(config: Action<KoverReportFilters>)
+    public fun filters(config: Action<KoverReportFiltersConfig>)
 
 
     /**
@@ -135,7 +135,11 @@ public interface KoverReportExtension {
      * }
      * ```
      */
-    public fun defaults(config: Action<KoverDefaultReportsConfig>)
+    @Deprecated(
+        message = "",
+        level = DeprecationLevel.ERROR
+    )
+    public fun defaults(config: Action<KoverDefaultReportVariantConfig>) { }
 
     /**
      * Configure reports for classes of specified Android build variant.
@@ -163,13 +167,28 @@ public interface KoverReportExtension {
      * }
      * ```
      */
-    public fun androidReports(variant: String, config: Action<KoverReportsConfig>)
+    @Deprecated(
+        message = "",
+        level = DeprecationLevel.ERROR
+    )
+    public fun androidReports(variant: String, config: Action<KoverReportVariantConfig>) { }
+
+    /**
+     * TODO
+     */
+    public fun total(config: Action<KoverReportVariantConfig>)
+
+    /**
+     * TODO
+     */
+    public fun variant(variant: String, config: Action<KoverReportVariantConfig>)
+
 }
 
 /**
  *  Configuration for default variant reports
  */
-public interface KoverDefaultReportsConfig: KoverReportsConfig {
+public interface KoverDefaultReportVariantConfig: KoverReportVariantConfig {
     /**
      * Add the contents of the reports with specified variant to the default reports.
      *
@@ -178,7 +197,7 @@ public interface KoverDefaultReportsConfig: KoverReportsConfig {
     public fun mergeWith(otherVariant: String)
 }
 
-public interface KoverReportsConfig {
+public interface KoverReportVariantConfig {
     /**
      * Specify common filters for the current report variant, these filters will be inherited in HTML/XML/verification reports.
      * They can be redefined in the settings of a specific report.
@@ -194,7 +213,27 @@ public interface KoverReportsConfig {
      *  }
      * ```
      */
-    public fun filters(config: Action<KoverReportFilters>)
+    public fun filters(config: Action<KoverReportFiltersConfig>)
+
+    /**
+     * TODO
+     * Specify common filters for the current report variant, these filters will be inherited in HTML/XML/verification reports.
+     * They can be redefined in the settings of a specific report.
+     * ```
+     *  filters {
+     *      excludes {
+     *          // ...
+     *      }
+     *
+     *      includes {
+     *          // ...
+     *      }
+     *  }
+     * ```
+     */
+    public fun filtersAppend(config: Action<KoverReportFiltersConfig>)
+
+
 
     /**
      * Configure HTML report for current report variant.
@@ -210,7 +249,7 @@ public interface KoverReportsConfig {
      *  }
      * ```
      */
-    public fun html(config: Action<KoverHtmlReportConfig>)
+    public fun html(config: Action<KoverHtmlTaskConfig>)
 
     /**
      * Configure XML report for current report variant.
@@ -225,7 +264,7 @@ public interface KoverReportsConfig {
      *  }
      * ```
      */
-    public fun xml(config: Action<KoverXmlReportConfig>)
+    public fun xml(config: Action<KoverXmlTaskConfig>)
 
     /**
      * Configure Kover binary report for current report variant.
@@ -242,7 +281,7 @@ public interface KoverReportsConfig {
      *
      * Kover binary report is compatible with IntelliJ Coverage report (ic)
      */
-    public fun binary(config: Action<KoverBinaryReportConfig>)
+    public fun binary(config: Action<KoverBinaryTaskConfig>)
 
     /**
      * Configure coverage verification for current report variant.
@@ -260,7 +299,25 @@ public interface KoverReportsConfig {
      *  }
      * ```
      */
-    public fun verify(config: Action<KoverVerifyReportConfig>)
+    public fun verify(config: Action<KoverVerifyTaskConfig>)
+
+    /**
+     * Configure coverage verification for current report variant.
+     * ```
+     *  verify {
+     *      onCheck = true
+     *
+     *      rule {
+     *          // ...
+     *      }
+     *
+     *      rule("Custom Name") {
+     *          // ...
+     *      }
+     *  }
+     * ```
+     */
+    public fun verifyAppend(config: Action<KoverVerifyTaskConfig>)
 
     /**
      * Configure coverage printing to the log for current report variant.
@@ -279,7 +336,7 @@ public interface KoverReportsConfig {
      *  }
      * ```
      */
-    public fun log(config: Action<KoverLogReportConfig>)
+    public fun log(config: Action<KoverLogTaskConfig>)
 }
 
 /**
@@ -299,18 +356,22 @@ public interface KoverReportsConfig {
  *  }
  * ```
  */
-public interface KoverLogReportConfig {
+public interface KoverLogTaskConfig {
     /**
      * Override common filters only for logging report.
      */
-    public fun filters(config: Action<KoverReportFilters>)
+    @Deprecated(
+        message = "",
+        level = DeprecationLevel.ERROR
+    )
+    public fun filters(config: Action<KoverReportFiltersConfig>)
 
     /**
      * Print coverage when running the `check` task.
      *
      * `false` by default.
      */
-    public var onCheck: Boolean
+    public val onCheck: Property<Boolean>
 
     /**
      * Add a header line to the output before the lines with coverage.
@@ -319,7 +380,7 @@ public interface KoverLogReportConfig {
      *
      * `null` by default.
      */
-    public var header: String?
+    public val header: Property<String>
 
     /**
      * Format of the strings to print coverage for the specified in [groupBy] group.
@@ -332,7 +393,7 @@ public interface KoverLogReportConfig {
      *
      * `null` by default.
      */
-    public var format: String?
+    public val format: Property<String>
 
     /**
      * Specifies by which entity the code for separate coverage evaluation will be grouped.
@@ -342,7 +403,7 @@ public interface KoverLogReportConfig {
      *
      * `null` by default.
      */
-    public var groupBy: GroupingEntityType?
+    public val groupBy: Property<GroupingEntityType>
 
     /**
      * Specifies which metric is used for coverage evaluation.
@@ -351,7 +412,7 @@ public interface KoverLogReportConfig {
      *
      * `null` by default.
      */
-    public var coverageUnits: MetricType?
+    public val coverageUnits: Property<MetricType>
 
     /**
      * Specifies aggregation function that will be calculated over all the elements of the same group. This function returns the printed value.
@@ -360,15 +421,29 @@ public interface KoverLogReportConfig {
      *
      * `null` by default.
      */
-    public var aggregationForGroup: AggregationType?
+    public val aggregationForGroup: Property<AggregationType>
 }
+
+/**
+ * TODO
+ */
+public interface KoverCustomVariant: KoverReportVariantConfig {
+    /**
+     * TODO
+     */
+    fun add(vararg variants: String)
+
+    /**
+     * TODO
+     */
+    fun addAndroid(buildType: String, vararg flavours: String)
+}
+
 
 /**
  * Filters to excludes
  */
-public interface KoverReportFilters {
-
-
+public interface KoverReportFiltersConfig {
     /**
      * Configures class filter in order to exclude declarations marked by specific annotations.
      *
@@ -482,6 +557,43 @@ public interface KoverReportFilter {
     public fun classes(names: Iterable<String>)
 
     /**
+     * Add specified classes to current filters.
+     * TODO Lazy
+     *
+     * It is acceptable to use `*` and `?` wildcards,
+     * `*` means any number of arbitrary characters (including no chars), `?` means one arbitrary character.
+     *
+     * Example:
+     * ```
+     *  classes("*.foo.Bar", "*.M?Class")
+     * ```
+     */
+    public fun classes(vararg names: Provider<String>)
+
+    /**
+     * Add specified classes to current filters.
+     * TODO Lazy
+     *
+     * It is acceptable to use `*` and `?` wildcards,
+     * `*` means any number of arbitrary characters (including no chars), `?` means one arbitrary character.
+     *
+     * Example for Groovy:
+     * ```
+     *  def someClasses = ["*.foo.Bar", "*.M?Class"]
+     *  ...
+     *  classes(someClasses)
+     * ```
+     *
+     * Example for Kotlin:
+     * ```
+     *  val someClasses = listOf("*.foo.Bar", "*.M?Class")
+     *  ...
+     *  classes(someClasses)
+     * ```
+     */
+    public fun classes(names: Provider<Iterable<String>>)
+
+    /**
      * Add all classes in specified package and it subpackages to current filters.
      *
      * It is acceptable to use `*` and `?` wildcards,
@@ -517,6 +629,41 @@ public interface KoverReportFilter {
     public fun packages(names: Iterable<String>)
 
     /**
+     * Add all classes in specified package and it subpackages to current filters.
+     *      * TODO Lazy
+     * It is acceptable to use `*` and `?` wildcards,
+     * `*` means any number of arbitrary characters (including no chars), `?` means one arbitrary character.
+     *
+     * Example:
+     * ```
+     *  packages("foo.b?r", "com.*.example")
+     * ```
+     */
+    public fun packages(vararg names: Provider<String>)
+
+    /**
+     * Add all classes in specified package and it subpackages to current filters.
+     *      * TODO Lazy
+     * It is acceptable to use `*` and `?` wildcards,
+     * `*` means any number of arbitrary characters (including no chars), `?` means one arbitrary character.
+     *
+     * Example for Groovy:
+     * ```
+     *  def somePackages = ["foo.b?r", "com.*.example"]
+     *
+     *  packages(somePackages)
+     * ```
+     *
+     * Example for Kotlin:
+     * ```
+     *  val somePackages = listOf("foo.b?r", "com.*.example")
+     *  ...
+     *  packages(somePackages)
+     * ```
+     */
+    public fun packages(names: Provider<Iterable<String>>)
+
+    /**
      * Add to filters all classes and functions marked by specified annotations.
      *
      * It is acceptable to use `*` and `?` wildcards,
@@ -528,6 +675,39 @@ public interface KoverReportFilter {
      * ```
      */
     public fun annotatedBy(vararg annotationName: String)
+
+    /**
+     * Add to filters all classes and functions marked by specified annotations.
+     *      * TODO Lazy
+     * It is acceptable to use `*` and `?` wildcards,
+     * `*` means any number of arbitrary characters (including no chars), `?` means one arbitrary character.
+     *
+     * Example:
+     * ```
+     *  annotatedBy("*Generated*", "com.example.KoverExclude")
+     * ```
+     */
+    public fun annotatedBy(vararg annotationName: Provider<String>)
+
+    /**
+     * TODO
+     *
+     *
+     *
+     *
+     *
+     *
+     */
+    public fun androidGeneratedClasses() {
+        classes(
+            "*Fragment",
+            "*Fragment\$*",
+            "*Activity",
+            "*Activity\$*",
+            "*.databinding.*",
+            "*.BuildConfig"
+        )
+    }
 }
 
 /**
@@ -554,55 +734,51 @@ public interface KoverReportFilter {
  *  ...
  * ```
  */
-public interface KoverHtmlReportConfig {
+public interface KoverHtmlTaskConfig {
     /**
      * Override common filters only for HTML report.
      */
-    public fun filters(config: Action<KoverReportFilters>)
+    @Deprecated(
+        message = "",
+        level = DeprecationLevel.ERROR
+    )
+    public fun filters(config: Action<KoverReportFiltersConfig>)
 
     /**
      * Specify header in HTML reports.
      *
      * If not specified, project path is used instead.
      */
-    public var title: String?
+    public val title: Property<String>
 
     /**
      * Specify charset in HTML reports.
      *
      * If not specified, used return value of `Charset.defaultCharset()` for Kover report generator and UTF-8 is used for JaCoCo.
      */
-    public var charset: String?
+    public val charset: Property<String>
 
     /**
      * Generate an HTML report when running the `check` task.
      */
-    public var onCheck: Boolean
+    public val onCheck: Property<Boolean>
 
+    // TODO !!!
     /**
      * Specify HTML report directory.
      */
-    public fun setReportDir(dir: File)
+    @Deprecated(
+        message = "",
+        level = DeprecationLevel.ERROR
+    )
+    public fun setReportDir(dir: Any) {
+        TODO()
+    }
 
     /**
-     * Specify HTML report directory.
+     * TODO
      */
-    public fun setReportDir(dir: Provider<Directory>)
-
-    @Deprecated(
-        message = "Property was removed. Use function 'setReportDir(file)'. Please refer to migration guide in order to migrate: ${KoverMigrations.MIGRATION_0_6_TO_0_7}",
-        replaceWith = ReplaceWith("setReportDir"),
-        level = DeprecationLevel.ERROR
-    )
-    public val reportDir: Nothing?
-        get() = null
-
-    @Deprecated(
-        message = "Use function 'filters' instead. Please refer to migration guide in order to migrate: ${KoverMigrations.MIGRATION_0_6_TO_0_7}",
-        replaceWith = ReplaceWith("filters"),
-        level = DeprecationLevel.ERROR
-    )
-    public fun overrideFilters(block: () -> Unit) { }
+    public val htmlDir: DirectoryProperty
 }
 
 /**
@@ -627,41 +803,36 @@ public interface KoverHtmlReportConfig {
  *  ...
  * ```
  */
-public interface KoverXmlReportConfig {
+public interface KoverXmlTaskConfig {
     /**
      * Override common filters only for XML report.
      */
-    public fun filters(config: Action<KoverReportFilters>)
+    @Deprecated(
+        message = "",
+        level = DeprecationLevel.ERROR
+    )
+    public fun filters(config: Action<KoverReportFiltersConfig>)
 
     /**
      * Generate an XML report when running the `check` task.
      */
-    public var onCheck: Boolean
+    public val onCheck: Property<Boolean>
 
     /**
      * Specify file to generate XML report.
      */
-    public fun setReportFile(xmlFile: File)
+    @Deprecated(
+        message = "",
+        level = DeprecationLevel.ERROR
+    )
+    public fun setReportFile(xmlFile: Any) {
+        TODO()
+    }
 
     /**
-     * Specify file to generate XML report.
+     * TODO
      */
-    public fun setReportFile(xmlFile: Provider<RegularFile>)
-
-    @Deprecated(
-        message = "Property was removed. Use function 'setReportFile(file)'. Please refer to migration guide in order to migrate: ${KoverMigrations.MIGRATION_0_6_TO_0_7}",
-        replaceWith = ReplaceWith("setReportFile"),
-        level = DeprecationLevel.ERROR
-    )
-    public val reportFile: Nothing?
-        get() = null
-
-    @Deprecated(
-        message = "Use function 'filters' instead. Please refer to migration guide in order to migrate: ${KoverMigrations.MIGRATION_0_6_TO_0_7}",
-        replaceWith = ReplaceWith("filters"),
-        level = DeprecationLevel.ERROR
-    )
-    public fun overrideFilters(block: () -> Unit) { }
+    public val xmlFile: RegularFileProperty
 }
 
 /**
@@ -686,11 +857,15 @@ public interface KoverXmlReportConfig {
  *  ...
  * ```
  */
-public interface KoverBinaryReportConfig {
+public interface KoverBinaryTaskConfig {
     /**
      * Override common filters only for binary report.
      */
-    public fun filters(config: Action<KoverReportFilters>)
+    @Deprecated(
+        message = "",
+        level = DeprecationLevel.ERROR
+    )
+    public fun filters(config: Action<KoverReportFiltersConfig>)
 
     /**
      * Generate binary report when running the `check` task.
@@ -716,12 +891,12 @@ public interface KoverBinaryReportConfig {
  *  }
  * ```
  */
-public interface KoverVerifyReportConfig: KoverVerificationRulesConfig {
+public interface KoverVerifyTaskConfig: KoverVerificationRulesConfig {
     /**
      * Verify coverage when running the `check` task.
      * `null` by default, for Kotlin JVM and Kotlin MPP triggered on `check` task, but not for Android.
      */
-    public var onCheck: Boolean
+    public val onCheck: Property<Boolean>
 }
 
 /**
@@ -764,14 +939,46 @@ public interface KoverVerificationRulesConfig {
  */
 public interface KoverVerifyRule {
     /**
+     * TODO
+     */
+    public val groupBy: Property<GroupingEntityType>
+
+    /**
+     * TODO
+     */
+    public val disabled: Property<Boolean>
+
+    /**
      * Specifies that the rule is checked during verification.
      */
+    @Deprecated(
+        message = "",
+        replaceWith = ReplaceWith("groupBy"),
+        level = DeprecationLevel.ERROR
+    )
     public var isEnabled: Boolean
+        get() {
+            TODO()
+        }
+        set(value) {
+            TODO()
+        }
 
     /**
      * Specifies by which entity the code for separate coverage evaluation will be grouped.
      */
+    @Deprecated(
+        message = "",
+        replaceWith = ReplaceWith("groupBy"),
+        level = DeprecationLevel.ERROR
+    )
     public var entity: GroupingEntityType
+        get() {
+            TODO()
+        }
+        set(value) {
+            TODO()
+        }
 
     /**
      * Specifies the set of Kover report filters that control
@@ -789,7 +996,11 @@ public interface KoverVerifyRule {
      *
      * @see KoverReportFilter
      */
-    public fun filters(config: Action<KoverReportFilters>)
+    @Deprecated(
+        message = "",
+        level = DeprecationLevel.ERROR
+    )
+    public fun filters(config: Action<KoverReportFiltersConfig>)
 
     /**
      * Specifies the set of verification rules that control the
@@ -799,7 +1010,7 @@ public interface KoverVerifyRule {
      * ```
      * // At least 75% of lines should be covered in order for build to pass
      * bound {
-     *     aggregation = AggregationType.COVERED_PERCENTAGE // Default aggregation
+     *     aggregationForGroup = AggregationType.COVERED_PERCENTAGE // Default aggregation
      *     metric = MetricType.LINE
      *     minValue = 75
      * }
@@ -813,25 +1024,49 @@ public interface KoverVerifyRule {
      * A shortcut for
      * ```
      * bound {
-     *     minValue = minValue
+     *     min.set(min)
      * }
      * ```
      *
      * @see bound
      */
-    public fun minBound(minValue: Int)
+    public fun minBound(min: Int)
 
     /**
      * A shortcut for
      * ```
      * bound {
-     *     maxValue = maxValue
+     *     min.set(min)
      * }
      * ```
      *
      * @see bound
      */
-    public fun maxBound(maxValue: Int)
+    public fun minBound(min: Provider<Int>)
+
+    /**
+     * A shortcut for
+     * ```
+     * bound {
+     *     max = max
+     * }
+     * ```
+     *
+     * @see bound
+     */
+    public fun maxBound(max: Int)
+
+    /**
+     * A shortcut for
+     * ```
+     * bound {
+     *     max = max
+     * }
+     * ```
+     *
+     * @see bound
+     */
+    public fun maxBound(max: Provider<Int>)
 
     // Default parameters values supported only in Kotlin.
 
@@ -840,8 +1075,8 @@ public interface KoverVerifyRule {
      * ```
      * bound {
      *     minValue = minValue
-     *     metric = metric
-     *     aggregation = aggregation
+     *     coverageUnits = coverageUnits
+     *     aggregationForGroup = aggregationForGroup
      * }
      * ```
      *
@@ -849,8 +1084,8 @@ public interface KoverVerifyRule {
      */
     public fun minBound(
         minValue: Int,
-        metric: MetricType = MetricType.LINE,
-        aggregation: AggregationType = AggregationType.COVERED_PERCENTAGE
+        coverageUnits: MetricType = MetricType.LINE,
+        aggregationForGroup: AggregationType = AggregationType.COVERED_PERCENTAGE
     )
 
     /**
@@ -858,7 +1093,7 @@ public interface KoverVerifyRule {
      * ```
      * bound {
      *     maxValue = maxValue
-     *     metric = metric
+     *     coverageUnits = coverageUnits
      *     aggregation = aggregation
      * }
      * ```
@@ -867,7 +1102,7 @@ public interface KoverVerifyRule {
      */
     public fun maxBound(
         maxValue: Int,
-        metric: MetricType = MetricType.LINE,
+        coverageUnits: MetricType = MetricType.LINE,
         aggregation: AggregationType = AggregationType.COVERED_PERCENTAGE
     )
 
@@ -875,9 +1110,9 @@ public interface KoverVerifyRule {
      * A shortcut for
      * ```
      * bound {
-     *     maxValue = maxValue
-     *     minValue = minValue
-     *     metric = metric
+     *     max = max
+     *     min = min
+     *     coverageUnits = coverageUnits
      *     aggregation = aggregation
      * }
      * ```
@@ -885,81 +1120,105 @@ public interface KoverVerifyRule {
      * @see bound
      */
     public fun bound(
-        minValue: Int,
-        maxValue: Int,
-        metric: MetricType = MetricType.LINE,
+        min: Int,
+        max: Int,
+        coverageUnits: MetricType = MetricType.LINE,
         aggregation: AggregationType = AggregationType.COVERED_PERCENTAGE
     )
 
-    @Deprecated(
-        message = "Property was renamed to 'entity'. Please refer to migration guide in order to migrate: ${KoverMigrations.MIGRATION_0_6_TO_0_7}",
-        replaceWith = ReplaceWith("entity"),
-        level = DeprecationLevel.ERROR
-    )
-    public var target: GroupingEntityType
-        get() = GroupingEntityType.APPLICATION
-        set(@Suppress("UNUSED_PARAMETER") value) {}
-
-    @Deprecated(
-        message = "Property 'name' was removed, specify rule name in `rule(myName) { ... }` function. Please refer to migration guide in order to migrate: ${KoverMigrations.MIGRATION_0_6_TO_0_7}",
-        level = DeprecationLevel.ERROR
-    )
-    public var name: String?
-
-    @Deprecated(
-        message = "Use function 'filters' instead. Please refer to migration guide in order to migrate: ${KoverMigrations.MIGRATION_0_6_TO_0_7}",
-        replaceWith = ReplaceWith("filters"),
-        level = DeprecationLevel.ERROR
-    )
-    public fun overrideClassFilter(block: () -> Unit) {}
 }
 
 /**
  * Describes a single bound for the verification rule to enforce;
  * Bound specifies what type of coverage is enforced (branches, lines, instructions),
- * how coverage is aggerageted (raw number or percents) and what numerical values of coverage
+ * how coverage is aggregated (raw number or percents) and what numerical values of coverage
  * are acceptable.
  */
 public interface KoverVerifyBound {
     /**
+     * TODO
+     */
+    public val min: Property<Int>
+
+    /**
+     * TODO
+     */
+    public val max: Property<Int>
+
+    /**
+     * TODO
+     */
+    public val coverageUnits: Property<MetricType>
+
+    /**
+     * TODO
+     */
+    public val aggregationForGroup: Property<AggregationType>
+
+    /**
      * Specifies minimal value to compare with counter value.
      */
+    @Deprecated(
+        message = "",
+        replaceWith = ReplaceWith("min"),
+        level = DeprecationLevel.ERROR
+    )
     public var minValue: Int?
+        get() {
+            TODO()
+        }
+        set(value) {
+            TODO()
+        }
 
     /**
      * Specifies maximal value to compare with counter value.
      */
+    @Deprecated(
+        message = "",
+        replaceWith = ReplaceWith("max"),
+        level = DeprecationLevel.ERROR
+    )
     public var maxValue: Int?
+        get() {
+            TODO()
+        }
+        set(value) {
+            TODO()
+        }
 
     /**
      * Specifies which metric is used for code coverage verification.
      */
+    @Deprecated(
+        message = "",
+        replaceWith = ReplaceWith("coverageUnits"),
+        level = DeprecationLevel.ERROR
+    )
     public var metric: MetricType
+        get() {
+            TODO()
+        }
+        set(value) {
+            TODO()
+        }
 
     /**
      * Specifies type of lines counter value to compare with minimal and maximal values if them defined.
      * Default is [AggregationType.COVERED_PERCENTAGE]
      */
+    @Deprecated(
+        message = "",
+        replaceWith = ReplaceWith("aggregationForGroup"),
+        level = DeprecationLevel.ERROR
+    )
     public var aggregation: AggregationType
-
-    @Deprecated(
-        message = "Property was renamed to 'metric'. Please refer to migration guide in order to migrate: ${KoverMigrations.MIGRATION_0_6_TO_0_7}",
-        replaceWith = ReplaceWith("metric"),
-        level = DeprecationLevel.ERROR
-    )
-    public var counter: MetricType
-        get() = MetricType.LINE
-        set(@Suppress("UNUSED_PARAMETER") value) {}
-
-    @Deprecated(
-        message = "Property was renamed to 'aggregation'. Please refer to migration guide in order to migrate: ${KoverMigrations.MIGRATION_0_6_TO_0_7}",
-        replaceWith = ReplaceWith("aggregation"),
-        level = DeprecationLevel.ERROR
-    )
-    public var valueType: AggregationType
-        get() = AggregationType.COVERED_PERCENTAGE
-        set(@Suppress("UNUSED_PARAMETER") value) {}
-
+        get() {
+            TODO()
+        }
+        set(value) {
+            TODO()
+        }
 
 }
 

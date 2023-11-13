@@ -34,12 +34,16 @@ internal class BinaryReportTests {
     @GeneratedTest
     fun BuildConfigurator.testOnCheck() {
         addProjectWithKover {
-            koverReport {
-                defaults {
-                    binary {
-                        onCheck.set(true)
+            kover {
+
+                reports {
+                    total {
+                        binary {
+                            onCheck.set(true)
+                        }
                     }
                 }
+
             }
         }
 
@@ -53,10 +57,12 @@ internal class BinaryReportTests {
         addProjectWithKover {
             sourcesFrom("simple")
 
-            koverReport {
-                defaults {
-                    binary {
-                        file.set(fileInBuildDir("custom/fileName"))
+            kover {
+                reports {
+                    total {
+                        binary {
+                            file.set(fileInBuildDir("custom/fileName"))
+                        }
                     }
                 }
             }

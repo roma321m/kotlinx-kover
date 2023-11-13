@@ -15,7 +15,7 @@ internal fun File.writeBuildScript(projectConfig: TestProjectConfigurator, slice
         writeRepositories(projectConfig.repositories)
         writeDependencies(projectConfig.projectDependencies, slice)
         writeBlocks(projectConfig.rawBlocks)
-        writeOverriddenTool(slice)
+        writeOverriddenTool()
     }
 }
 
@@ -90,14 +90,14 @@ private fun FormattedWriter.writeBlocks(rawBlocks: List<String>) {
     }
 }
 
-private fun FormattedWriter.writeOverriddenTool(slice: BuildSlice) {
-    val vendor = slice.toolVendor ?: return
+private fun FormattedWriter.writeOverriddenTool() {
+//    val vendor = slice.toolVendor ?: return
 
     call("kover") {
-        val koverWriter = KoverWriter(this)
-        if (vendor == CoverageToolVendor.JACOCO) {
-            koverWriter.useJacoco()
-        }
+//        val koverWriter = KoverWriter(this)
+//        if (vendor == CoverageToolVendor.JACOCO) {
+////            koverWriter.useJacoco()
+//        }
     }
 }
 

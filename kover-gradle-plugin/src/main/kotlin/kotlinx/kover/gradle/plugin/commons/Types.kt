@@ -40,8 +40,10 @@ internal enum class KotlinPluginType {
  * Source of reports variant.
  */
 internal enum class ReportsVariantType {
-    DEFAULT,
-    ANDROID
+    TOTAL,
+    JVM,
+    ANDROID,
+    CUSTOM
 }
 
 /**
@@ -173,11 +175,6 @@ internal data class ReportFilters(
 internal open class VerificationRule @Inject constructor(
     @get:Input
     val isEnabled: Boolean,
-
-    @get:Nested
-    @get:Nullable
-    @get:Optional
-    val filters: ReportFilters?,
 
     @get:Input
     @get:Nullable

@@ -38,9 +38,7 @@ internal interface ProjectConfigurator {
 
     fun repositories(block: RepositoriesConfigurator.() -> Unit)
 
-    fun kover(config: KoverProjectExtension.() -> Unit)
-
-    fun koverReport(config: KoverReportExtension.() -> Unit)
+    fun kover(config: KoverExtension.() -> Unit)
 
     fun sourcesFrom(template: String)
 

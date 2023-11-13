@@ -12,9 +12,10 @@ import kotlinx.kover.gradle.plugin.dsl.KoverNames.DEFAULT_XML_REPORT_NAME
 import java.util.*
 
 /**
+ * TODO
  * Name of the default Kover variant.
  */
-internal const val DEFAULT_KOVER_VARIANT_NAME = ""
+internal const val TOTAL_VARIANT_NAME = ""
 
 /**
  * Name of task to find online instrumentation agent jar file.

@@ -4,49 +4,30 @@
 
 package kotlinx.kover.gradle.plugin.appliers.reports
 
+import kotlinx.kover.gradle.plugin.appliers.variants.AbstractReportVariant
 import kotlinx.kover.gradle.plugin.commons.*
-import kotlinx.kover.gradle.plugin.commons.VariantNameAttr
-import kotlinx.kover.gradle.plugin.commons.ProjectPathAttr
-import kotlinx.kover.gradle.plugin.commons.ReportsVariantType
-import kotlinx.kover.gradle.plugin.commons.artifactFilePath
-import kotlinx.kover.gradle.plugin.commons.artifactGenerationTaskName
-import kotlinx.kover.gradle.plugin.commons.asConsumer
-import kotlinx.kover.gradle.plugin.commons.externalArtifactConfigurationName
-import kotlinx.kover.gradle.plugin.commons.htmlReportTaskName
-import kotlinx.kover.gradle.plugin.commons.artifactConfigurationName
-import kotlinx.kover.gradle.plugin.dsl.AggregationType
-import kotlinx.kover.gradle.plugin.dsl.GroupingEntityType
-import kotlinx.kover.gradle.plugin.dsl.MetricType
-import kotlinx.kover.gradle.plugin.dsl.internal.*
-import kotlinx.kover.gradle.plugin.dsl.internal.KoverReportFiltersImpl
-import kotlinx.kover.gradle.plugin.dsl.internal.KoverReportsConfigImpl
-import kotlinx.kover.gradle.plugin.dsl.internal.KoverVerifyBoundImpl
-import kotlinx.kover.gradle.plugin.dsl.internal.KoverVerifyRuleImpl
+import kotlinx.kover.gradle.plugin.dsl.KoverVerifyBound
+import kotlinx.kover.gradle.plugin.dsl.impl.KoverReportFiltersConfigImpl
+import kotlinx.kover.gradle.plugin.dsl.impl.KoverReportVariantConfigImpl
+import kotlinx.kover.gradle.plugin.dsl.impl.KoverVerifyRuleImpl
 import kotlinx.kover.gradle.plugin.tasks.reports.*
-import kotlinx.kover.gradle.plugin.tasks.reports.AbstractKoverReportTask
-import kotlinx.kover.gradle.plugin.tasks.reports.KoverHtmlTask
-import kotlinx.kover.gradle.plugin.tasks.reports.KoverVerifyTask
-import kotlinx.kover.gradle.plugin.tasks.reports.KoverXmlTask
-import kotlinx.kover.gradle.plugin.tasks.services.KoverArtifactGenerationTask
 import kotlinx.kover.gradle.plugin.tasks.services.KoverPrintLogTask
 import kotlinx.kover.gradle.plugin.tools.CoverageTool
-import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.TaskProvider
-import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.register
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 
-internal abstract class ReportsVariantApplier(
+internal class ReportsVariantApplier(
     private val project: Project,
     private val variantName: String,
     private val type: ReportsVariantType,
-    private val koverDependencies: Configuration,
-    private val reportClasspath: Configuration,
-    private val toolProvider: Provider<CoverageTool>
+    private val toolProvider: Provider<CoverageTool>,
+    private val config: KoverReportVariantConfigImpl,
+    private val reporterConfiguration: Configuration
 ) {
     private val htmlTask: TaskProvider<KoverHtmlTask>
     private val xmlTask: TaskProvider<KoverXmlTask>
@@ -54,176 +35,116 @@ internal abstract class ReportsVariantApplier(
     private val verifyTask: TaskProvider<KoverVerifyTask>
     private val logTask: TaskProvider<KoverFormatCoverageTask>
 
-    private val artifactGenTask: TaskProvider<KoverArtifactGenerationTask>
-    protected val config: NamedDomainObjectProvider<Configuration>
-    protected val dependencies: NamedDomainObjectProvider<Configuration>
-
     init {
-        artifactGenTask = project.tasks.register<KoverArtifactGenerationTask>(artifactGenerationTaskName(variantName))
-
-        val artifactProperty = project.layout.buildDirectory.file(artifactFilePath(variantName))
-        artifactGenTask.configure {
-            artifactFile.set(artifactProperty)
-        }
-
-        config = project.configurations.register(artifactConfigurationName(variantName)) {
-            // disable generation of Kover artifacts on `assemble`, fix of https://github.com/Kotlin/kotlinx-kover/issues/353
-            isVisible = false
-            outgoing.artifact(artifactProperty) {
-                asProducer()
-                attributes {
-                    // common Kover artifact attributes
-                    attribute(VariantNameAttr.ATTRIBUTE, project.objects.named(variantName))
-                    attribute(ProjectPathAttr.ATTRIBUTE, project.objects.named(project.path))
-                }
-                // Before resolving this configuration, it is necessary to execute the task of generating an artifact
-                builtBy(artifactGenTask)
-            }
-        }
-
-        dependencies = project.configurations.register(externalArtifactConfigurationName(variantName)) {
-            asConsumer()
-            extendsFrom(koverDependencies)
-        }
-
-
         htmlTask = project.tasks.createReportTask<KoverHtmlTask>(
             htmlReportTaskName(variantName),
-            htmlTaskDescription()
+            "Task to generate HTML coverage report for ${variantSuffix()}"
         )
         xmlTask = project.tasks.createReportTask<KoverXmlTask>(
             xmlReportTaskName(variantName),
-            xmlTaskDescription()
+            "Task to generate XML coverage report for ${variantSuffix()}"
         )
         binTask = project.tasks.createReportTask<KoverBinaryTask>(
             binaryReportTaskName(variantName),
-            icTaskDescription()
+            "Task to generate binary coverage report in IntelliJ format for ${variantSuffix()}"
         )
+
         verifyTask = project.tasks.createReportTask<KoverVerifyTask>(
             verifyTaskName(variantName),
-            verifyTaskDescription()
+            "Task to validate coverage bounding rules for ${variantSuffix()}"
         )
         logTask = project.tasks.createReportTask<KoverFormatCoverageTask>(
             logTaskName(variantName),
-            logTaskDescription()
+            "Task to print coverage to log for ${variantSuffix()}"
         )
         val printCoverageTask = project.tasks.register<KoverPrintLogTask>(printLogTaskName(variantName))
-        printCoverageTask.configure {
-            fileWithMessage.convention(logTask.flatMap { it.outputFile })
-            onlyIf {
-                fileWithMessage.asFile.get().exists()
-            }
-        }
-        logTask.configure {
-            finalizedBy(printCoverageTask)
-        }
-    }
-
-
-    fun applyConfig(
-        reportConfig: KoverReportsConfigImpl,
-        commonFilters: KoverReportFiltersImpl? = null,
-        commonVerify: KoverVerificationRulesConfigImpl? = null
-    ) {
-        reportConfig.binary.onCheck.convention(false)
-        reportConfig.binary.file.convention(project.layout.buildDirectory.file(binaryReportPath(variantName)))
 
         val runOnCheck = mutableListOf<Any>()
 
         htmlTask.configure {
             onlyIf { printPath() }
 
-            reportDir.convention(project.layout.dir(reportConfig.html.reportDirProperty))
-            title.convention(reportConfig.html.title ?: project.name)
-            charset.convention(reportConfig.html.charset)
-            filters.set((reportConfig.html.filters ?: reportConfig.filters ?: commonFilters).convert())
+            reportDir.convention(config.html.htmlDir)
+            title.convention(config.html.title.orElse(project.name))
+            charset.convention(config.html.charset)
+            filters.set((config.filters).convert())
         }
-        if (reportConfig.html.onCheck) {
-            runOnCheck += htmlTask
+        runOnCheck += config.html.onCheck.map { run ->
+            if (run) listOf(htmlTask) else emptyList()
         }
 
         xmlTask.configure {
-            reportFile.convention(project.layout.file(reportConfig.xml.reportFileProperty))
-            filters.set((reportConfig.xml.filters ?: reportConfig.filters ?: commonFilters).convert())
+            reportFile.convention(config.xml.xmlFile)
+            filters.set((config.filters).convert())
         }
-        if (reportConfig.xml.onCheck) {
-            runOnCheck += xmlTask
+        runOnCheck += config.xml.onCheck.map { run ->
+            if (run) listOf(xmlTask) else emptyList()
         }
 
         binTask.configure {
-            file.convention(reportConfig.binary.file)
-            filters.set((reportConfig.binary.filters ?: reportConfig.filters ?: commonFilters).convert())
+            file.convention(config.binary.file)
+            filters.set((config.filters).convert())
         }
-        runOnCheck += reportConfig.binary.onCheck.map { run ->
+        runOnCheck += config.binary.onCheck.map { run ->
             if (run) listOf(binTask) else emptyList()
         }
 
         verifyTask.configure {
-            val resultRules = reportConfig.verify?.rules ?: commonVerify?.rules ?: emptyList()
-            val converted = resultRules.map { it.convert() }
+            val resultRules = config.verify.rules
+            val converted = resultRules.map { rules -> rules.map { it.convert() } }
 
             // path can't be changed
             resultFile.convention(project.layout.buildDirectory.file(verificationErrorsPath(variantName)))
-            filters.set((reportConfig.verify?.filters ?: reportConfig.filters ?: commonFilters).convert())
+
+            filters.set((config.filters).convert())
             rules.addAll(converted)
 
             shouldRunAfter(htmlTask)
             shouldRunAfter(xmlTask)
             shouldRunAfter(binTask)
+            shouldRunAfter(logTask)
         }
-        if (reportConfig.verify?.onCheck == true || (reportConfig.verify == null && variantName == DEFAULT_KOVER_VARIANT_NAME)) {
-            runOnCheck += verifyTask
+        // TODO  reportConfig.verify?.onCheck == true || (reportConfig.verify == null && variantName == DEFAULT_KOVER_VARIANT_NAME)
+        runOnCheck += config.verify.onCheck.map { run ->
+            if (run) listOf(verifyTask) else emptyList()
+        }
+
+        printCoverageTask.configure {
+            fileWithMessage.convention(logTask.flatMap { it.outputFile })
+            onlyIf {
+                fileWithMessage.asFile.get().exists()
+            }
         }
 
         logTask.configure {
-            header.convention(reportConfig.log.header)
-            lineFormat.convention(reportConfig.log.format ?: "<entity> line coverage: <value>%")
-            groupBy.convention(reportConfig.log.groupBy ?: GroupingEntityType.APPLICATION)
-            coverageUnits.convention(reportConfig.log.coverageUnits ?: MetricType.LINE)
-            aggregationForGroup.convention(reportConfig.log.aggregationForGroup ?: AggregationType.COVERED_PERCENTAGE)
+            header.convention(config.log.header)
+            lineFormat.convention(config.log.format)
+            groupBy.convention(config.log.groupBy)
+            coverageUnits.convention(config.log.coverageUnits)
+            aggregationForGroup.convention(config.log.aggregationForGroup)
+
             outputFile.convention(project.layout.buildDirectory.file(coverageLogPath(variantName)))
 
-            filters.set((reportConfig.log.filters ?: reportConfig.filters ?: commonFilters).convert())
+            filters.set((config.filters).convert())
+
+            finalizedBy(printCoverageTask)
         }
-        if (reportConfig.log.onCheck) {
-            runOnCheck += logTask
+        runOnCheck += config.log.onCheck.map { run ->
+            if (run) listOf(logTask) else emptyList()
         }
+
 
         project.tasks
             .matching { it.name == LifecycleBasePlugin.CHECK_TASK_NAME }
             .configureEach { dependsOn(runOnCheck) }
     }
 
-    fun mergeWith(otherVariant: ReportsVariantApplier) {
-        artifactGenTask.configure {
-            additionalArtifacts.from(
-                otherVariant.artifactGenTask.map { task -> task.artifactFile },
-                otherVariant.dependencies
-            )
-            dependsOn(otherVariant.artifactGenTask, otherVariant.dependencies)
-        }
-    }
-
-    protected fun applyCommonCompilationKit(kit: CompilationKit) {
-        val tests = kit.tests
-        val compilations = kit.compilations.map { it.values }
-
-        // local files and compile tasks
-        val compileTasks = compilations.map { unit -> unit.flatMap { it.compileTasks } }
-        val outputs = compilations.map { unit -> unit.flatMap { it.outputs } }
-        val sources = compilations.map { unit -> unit.flatMap { it.sources } }
-        val binReportFiles = project.layout.buildDirectory.dir(binReportsRootPath())
-            .map { dir -> tests.map { dir.file(binReportName(it.name, toolProvider.get().variant.vendor)) } }
-
-        artifactGenTask.configure {
-            // to generate an artifact, need to compile the entire project and perform all test tasks
-            dependsOn(tests)
-            dependsOn(compileTasks)
-
-            this.sources.from(sources)
-            this.outputDirs.from(outputs)
-            this.reports.from(binReportFiles)
-        }
+    internal fun assign(variant: AbstractReportVariant) {
+        htmlTask.assign(variant)
+        xmlTask.assign(variant)
+        binTask.assign(variant)
+        verifyTask.assign(variant)
+        logTask.assign(variant)
     }
 
     private inline fun <reified T : AbstractKoverReportTask> TaskContainer.createReportTask(
@@ -235,69 +156,45 @@ internal abstract class ReportsVariantApplier(
             group = LifecycleBasePlugin.VERIFICATION_GROUP
             description = taskDescription
             tool.convention(toolProvider)
-            reportClasspath.from(this@ReportsVariantApplier.reportClasspath)
-
-            dependsOn(artifactGenTask)
-            dependsOn(dependencies)
-
-            localArtifact.set(artifactGenTask.flatMap { task -> task.artifactFile })
-            externalArtifacts.from(dependencies)
+            reportClasspath.from(reporterConfiguration)
         }
         return task
     }
 
-    private fun xmlTaskDescription(): String {
-        return when (type) {
-            ReportsVariantType.DEFAULT -> "Task to generate XML coverage report for JVM project or Kotlin/MPP JVM targets. Android measurements for specific build variant can be merged"
-            ReportsVariantType.ANDROID -> "Task to generate XML coverage report for '$variantName' Android build variant"
+    private fun <T : AbstractKoverReportTask> TaskProvider<T>.assign(variant: AbstractReportVariant) {
+        configure {
+            dependsOn(variant.artifactGenTask)
+            dependsOn(variant.consumerConfiguration)
+
+            localArtifact.set(variant.artifactGenTask.flatMap { task -> task.artifactFile })
+            externalArtifacts.from(variant.consumerConfiguration)
         }
     }
 
-    private fun icTaskDescription(): String {
+    private fun variantSuffix(): String {
         return when (type) {
-            ReportsVariantType.DEFAULT -> "Task to generate binary coverage report in IntelliJ format for JVM project or Kotlin/MPP JVM targets. Android measurements for specific build variant can be merged"
-            ReportsVariantType.ANDROID -> "Task to generate binary coverage report in IntelliJ format for '$variantName' Android build variant"
+            ReportsVariantType.TOTAL -> "all code."
+            ReportsVariantType.ANDROID -> "'$variantName' Android build variant"
+            ReportsVariantType.JVM -> "Kotlin JVM"
+            ReportsVariantType.CUSTOM -> "custom report variant '$variantName'"
         }
     }
 
-    private fun htmlTaskDescription(): String {
-        return when (type) {
-            ReportsVariantType.DEFAULT -> "Task to generate HTML coverage report for JVM project or Kotlin/MPP JVM targets. Android measurements for specific build variant can be merged"
-            ReportsVariantType.ANDROID -> "Task to generate HTML coverage report for '$variantName' Android build variant"
-        }
-    }
-
-    private fun verifyTaskDescription(): String {
-        return when (type) {
-            ReportsVariantType.DEFAULT -> "Task to validate coverage bounding rules for JVM project or Kotlin/MPP JVM targets. Android measurements for specific build variant can be merged"
-            ReportsVariantType.ANDROID -> "Task to validate coverage bounding rules for '$variantName' Android build variant"
-        }
-    }
-
-    private fun logTaskDescription(): String {
-        return when (type) {
-            ReportsVariantType.DEFAULT -> "Task to print coverage to log for JVM project or Kotlin/MPP JVM targets. Android measurements for specific build variant can be merged"
-            ReportsVariantType.ANDROID -> "Task to print coverage to log for '$variantName' Android build variant"
+    private fun KoverReportFiltersConfigImpl.convert(): Provider<ReportFilters> {
+        return project.provider {
+            ReportFilters(
+                includesImpl.classes.get(), includesImpl.annotations.get(),
+                excludesImpl.classes.get(), excludesImpl.annotations.get()
+            )
         }
     }
 }
 
 
 private fun KoverVerifyRuleImpl.convert(): VerificationRule {
-    return VerificationRule(isEnabled, filters?.convert(), internalName, entity, bounds.map { it.convert() })
+    return VerificationRule(!disabled.get(), name, groupBy.get(), bounds.map { it.convert() })
 }
 
-private fun KoverVerifyBoundImpl.convert(): VerificationBound {
-    return VerificationBound(minValue?.toBigDecimal(), maxValue?.toBigDecimal(), metric, aggregation)
+private fun KoverVerifyBound.convert(): VerificationBound {
+    return VerificationBound(min.orNull?.toBigDecimal(), max.orNull?.toBigDecimal(), coverageUnits.get(), aggregationForGroup.get())
 }
-
-private fun KoverReportFiltersImpl?.convert(): ReportFilters {
-    this ?: return emptyFilters
-
-    return ReportFilters(
-        includesIntern.classes, includesIntern.annotations,
-        excludesIntern.classes, excludesIntern.annotations
-    )
-}
-
-private val emptyFilters = ReportFilters()

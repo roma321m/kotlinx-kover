@@ -4,6 +4,7 @@
 
 package kotlinx.kover.gradle.plugin.tasks.reports
 
+import kotlinx.kover.gradle.plugin.dsl.tasks.KoverHtmlReport
 import org.gradle.api.file.*
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.*
@@ -11,7 +12,7 @@ import java.io.File
 import java.net.URI
 
 @CacheableTask
-internal abstract class KoverHtmlTask : AbstractKoverReportTask() {
+internal abstract class KoverHtmlTask : AbstractKoverReportTask(), KoverHtmlReport {
     @get:OutputDirectory
     abstract val reportDir: DirectoryProperty
 

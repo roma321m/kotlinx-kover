@@ -43,8 +43,8 @@ internal fun coverageLogPath(variant: String): String {
 }
 
 internal fun artifactFilePath(variant: String): String {
-    return if (variant == DEFAULT_KOVER_VARIANT_NAME) {
-        "kover${separator}default.artifact"
+    return if (variant == TOTAL_VARIANT_NAME) {
+        "kover${separator}total.artifact"
     } else {
         "kover${separator}$variant.artifact"
     }

@@ -147,6 +147,11 @@ private class CheckerContextImpl(
         assertNull(result.taskOutcome(taskPath), "Task '$taskNameOrPath' should not have been called")
     }
 
+    override fun taskIsCalled(taskNameOrPath: String) {
+        val taskPath = taskNameOrPath.asPath()
+        assertNotNull(result.taskOutcome(taskPath), "Task '$taskNameOrPath' should have been called")
+    }
+
     override fun taskOutput(taskNameOrPath: String, checker: String.() -> Unit) {
         val taskPath = taskNameOrPath.asPath()
         val taskLog = result.taskLog(taskPath) ?: noTaskFound(taskNameOrPath, taskPath)
@@ -197,7 +202,7 @@ private class ProjectAnalysisDataImpl(override val rootDir: File, override val p
     override val language = if (buildFile.name.endsWith(".kts")) ScriptLanguage.KOTLIN else ScriptLanguage.GROOVY
     override val kotlinPlugin by lazy { buildScript.kotlinPluginType(language) }
     override val definedKoverVersion: String? by lazy { buildScript.definedKoverVersion() }
-    override val toolVariant: CoverageToolVariant by lazy { buildScript.definedTool() ?: KoverToolDefaultVariant }
+    override val toolVariant: CoverageToolVariant by lazy { buildScript.definedTool() ?: KoverToolBuiltInt }
 
     override fun allProjects(): List<ProjectAnalysisData> {
         return mutableListOf(this) + subprojects()

@@ -129,29 +129,16 @@ internal class TestProjectConfigurator(private val name: String? = null) : Proje
         repositoriesConfigurator.also(block)
     }
 
-    override fun kover(config: KoverProjectExtension.() -> Unit) {
-        val builder = StringBuilder()
-        val writer = FormattedWriter(builder::append)
-
-        writer.call("kover") {
-            val koverWriter = KoverWriter(this)
-            config(koverWriter)
-        }
-
-        rawBlocks += builder.toString()
-    }
-
-    override fun koverReport(config: KoverReportExtension.() -> Unit) {
-        val builder = StringBuilder()
-        val writer = FormattedWriter(builder::append)
-
-        writer.call("koverReport") {
-            val koverWriter = KoverReportExtensionWriter(this)
-            config(koverWriter)
-        }
-
-
-        rawBlocks += builder.toString()
+    override fun kover(config: KoverExtension.() -> Unit) {
+//        val builder = StringBuilder()
+//        val writer = FormattedWriter(builder::append)
+//
+//        writer.call("kover") {
+//            val koverWriter = KoverWriter(this)
+//            config(koverWriter)
+//        }
+//
+//        rawBlocks += builder.toString()
     }
 
 
