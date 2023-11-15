@@ -34,5 +34,5 @@ public interface KoverExtension {
 
     public fun reports(block: Action<KoverReportConfig>)
 
-    public fun applyInAllProjects(block: Action<KoverApplyConfig>)
+    public fun applyAllProjects(block: Action<KoverApplyConfig>)
 }

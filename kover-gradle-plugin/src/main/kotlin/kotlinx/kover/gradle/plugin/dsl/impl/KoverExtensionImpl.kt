@@ -32,7 +32,7 @@ internal abstract class KoverExtensionImpl @Inject constructor(objects: ObjectFa
         block.execute(reports)
     }
 
-    override fun applyInAllProjects(block: Action<KoverApplyConfig>) {
+    override fun applyAllProjects(block: Action<KoverApplyConfig>) {
         TODO("Not yet implemented")
     }
 }
