@@ -104,7 +104,7 @@ internal fun Configuration.asTransitiveDependencies() {
  *
  * See: https://docs.gradle.org/7.5.1/userguide/declaring_dependencies.html#sec:resolvable-consumable-configs
  */
-internal fun Configuration.asBucket() {
+internal fun Configuration.asDependency() {
     isVisible = true
     isCanBeResolved = false
     isCanBeConsumed = false
@@ -117,6 +117,7 @@ internal fun Configuration.asBucket() {
  * See: https://docs.gradle.org/7.5.1/userguide/declaring_dependencies.html#sec:resolvable-consumable-configs
  */
 internal fun Configuration.asProducer() {
+    // disable generation of Kover artifacts on `assemble`, fix of https://github.com/Kotlin/kotlinx-kover/issues/353
     isVisible = false
     isCanBeResolved = false
     // this configuration produces modules that can be consumed by other projects

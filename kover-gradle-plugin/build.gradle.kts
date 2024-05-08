@@ -41,6 +41,7 @@ val functionalTestImplementation = "functionalTestImplementation"
 
 dependencies {
     implementation(project(":kover-features-jvm"))
+    implementation(project(":kover-jvm-agent"))
     // exclude transitive dependency on stdlib, the Gradle version should be used
     compileOnly(kotlin("stdlib"))
     compileOnly(libs.gradlePlugin.kotlin)
@@ -51,6 +52,13 @@ dependencies {
 
     snapshotRelease(project(":kover-features-jvm"))
     snapshotRelease(project(":kover-jvm-agent"))
+
+    functionalTestImplementation(gradleTestKit())
+    // dependencies only for plugin's classpath to work with Kotlin Multi-Platform and Android plugins
+    functionalTestImplementation("org.jetbrains.kotlin:kotlin-gradle-plugin:$embeddedKotlinVersion")
+    functionalTestImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:$embeddedKotlinVersion")
+    functionalTestImplementation("org.jetbrains.kotlin:kotlin-compiler-runner:$embeddedKotlinVersion")
+
 }
 
 kotlin {
@@ -69,7 +77,20 @@ val functionalTest by tasks.registering(Test::class) {
     useJUnitPlatform()
 
     dependsOn(tasks.collectRepository)
+
+    // While gradle testkit supports injection of the plugin classpath it doesn't allow using dependency notation
+    // to determine the actual runtime classpath for the plugin. It uses isolation, so plugins applied by the build
+    // script are not visible in the plugin classloader. This means optional dependencies (dependent on applied plugins -
+    // for example kotlin multiplatform) are not visible even if they are in regular gradle use. This hack will allow
+    // extending the classpath. It is based upon: https://docs.gradle.org/6.0/userguide/test_kit.html#sub:test-kit-classpath-injection
+    // Create a configuration to register the dependencies against
     doFirst {
+        val file = File(temporaryDir, "plugin-classpath.txt")
+        file.writeText(sourceSets["functionalTest"].compileClasspath
+            .filter { it.name.startsWith("stdlib") }
+            .joinToString("\n"))
+        systemProperties["plugin-classpath"] = file.absolutePath
+
         // basic build properties
         setSystemPropertyFromProject("kover.test.kotlin.version")
 
@@ -86,7 +107,7 @@ val functionalTest by tasks.registering(Test::class) {
         systemProperties["junit.jupiter.execution.parallel.config.fixed.parallelism"] =
             junitParallelism?.toIntOrNull()?.toString() ?: "2"
         // this is necessary if tests are run for debugging, in this case it is more difficult to stop at the test you need when they are executed in parallel and you are not sure on which test the execution will pause
-        systemProperties["junit.jupiter.execution.parallel.enabled"] = if (junitParallelism == "no") "false" else "true"
+        systemProperties["junit.jupiter.execution.parallel.enabled"] = if (junitParallelism == "no") "false" else "false"
 
 
         // customizing functional tests
@@ -192,6 +213,22 @@ gradlePlugin {
         create("Kover") {
             id = "org.jetbrains.kotlinx.kover"
             implementationClass = "kotlinx.kover.gradle.plugin.KoverGradlePlugin"
+            displayName = "Gradle Plugin for Kotlin Code Coverage Tools"
+            description = "Evaluate code coverage for projects written in Kotlin"
+            tags.addAll("kover", "kotlin", "coverage")
+        }
+    }
+}
+
+
+gradlePlugin {
+    website.set("https://github.com/Kotlin/kotlinx-kover")
+    vcsUrl.set("https://github.com/Kotlin/kotlinx-kover.git")
+
+    plugins {
+        create("KoverSettings") {
+            id = "org.jetbrains.kotlinx.kover.settings"
+            implementationClass = "kotlinx.kover.gradle.plugin.settings.plugins.KoverSettingsGradlePlugin"
             displayName = "Gradle Plugin for Kotlin Code Coverage Tools"
             description = "Evaluate code coverage for projects written in Kotlin"
             tags.addAll("kover", "kotlin", "coverage")

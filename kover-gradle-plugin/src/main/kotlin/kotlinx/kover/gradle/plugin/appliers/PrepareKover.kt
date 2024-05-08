@@ -20,7 +20,7 @@ import org.gradle.kotlin.dsl.register
  */
 internal fun prepare(project: Project): KoverContext {
     val koverBucketConfiguration = project.configurations.create(KOVER_DEPENDENCY_NAME) {
-        asBucket()
+        asDependency()
     }
 
     val projectExtension = project.extensions.create<KoverProjectExtensionImpl>(
